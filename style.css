@@ -1,0 +1,260 @@
+/* Add a container for the entire layout */
+.container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    max-width: 95vw;
+    margin: 0 auto;
+    padding: 10px;
+}
+
+/* Left column - Controls */
+.left-column {
+    width: 20%;
+    min-width: 200px;
+    padding: 10px;
+}
+
+/* Middle column - Board */
+.middle-column {
+    width: 50%;
+    max-width: 600px;
+    padding: 10px;
+}
+
+/* Right column - Evaluation */
+.right-column {
+    width: 20%;
+    min-width: 200px;
+    padding: 10px;
+}
+
+#board {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+#feedback {
+    text-align: center;
+    margin: 10px;
+    min-height: 20px;
+    font-weight: bold;
+}
+
+.highlight-square {
+    box-shadow: inset 0 0 5px 5px rgba(255, 255, 0, 0.7);
+    background-color: rgba(255, 255, 0, 0.3) !important;
+}
+
+#computer-controls {
+    margin: 0;
+    text-align: left;
+    width: 100%;
+}
+
+.active-player {
+    font-weight: bold;
+    color: #2e7d32;
+}
+
+.difficulty-control {
+    margin-bottom: 10px;
+}
+
+.side-selector {
+    margin-top: 10px;
+}
+
+.piece-selector {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 5px;
+    width: 100%;
+}
+
+.piece-option {
+    cursor: pointer;
+    padding: 10px;
+    border: 2px solid transparent;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+}
+
+.piece-option:hover {
+    background-color: #f0f0f0;
+}
+
+.piece-image {
+    font-size: 32px;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+}
+
+.white-piece {
+    color: #fff;
+    text-shadow: 
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000;
+}
+
+.black-piece {
+    color: #000;
+}
+
+.piece-label {
+    font-size: 12px;
+    text-align: center;
+    width: 100%;
+}
+
+.selected-side {
+    border-color: #4CAF50;
+    background-color: #f0f0f0;
+}
+
+.button-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.button-controls button {
+    width: 100%;
+    margin: 0;
+}
+
+.button-controls button:hover {
+    background-color: #45a049;
+}
+
+.suggestion-square-from {
+    box-shadow: inset 0 0 5px 5px rgba(0, 255, 0, 0.5);
+    background-color: rgba(0, 255, 0, 0.2) !important;
+}
+
+.suggestion-square-to {
+    box-shadow: inset 0 0 5px 5px rgba(0, 255, 0, 0.8);
+    background-color: rgba(0, 255, 0, 0.3) !important;
+}
+
+.blunder-square {
+    box-shadow: inset 0 0 5px 5px rgba(255, 0, 0, 0.7);
+    background-color: rgba(255, 0, 0, 0.2) !important;
+}
+
+.move-arrow {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.arrow-head {
+    position: absolute;
+}
+
+.evaluation-panel {
+    width: 100%;
+    margin: 0;
+}
+
+.evaluation-panel h4 {
+    margin-top: 0;
+    text-align: center;
+    color: #333;
+}
+
+#eval-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#eval-table td {
+    padding: 3px;
+    font-size: calc(0.8vw + 8px);
+    border-bottom: 1px solid #eee;
+}
+
+#eval-table td:first-child {
+    font-weight: bold;
+    width: 40%;
+}
+
+.positive-score {
+    color: green;
+}
+
+.negative-score {
+    color: red;
+}
+
+.neutral-score {
+    color: #666;
+}
+
+.live-eval {
+    width: 100%;
+    margin: 0 0 20px 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.eval-bar-container {
+    width: 20px;
+    height: 200px;
+    margin: 0 auto;
+    position: relative;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    overflow: hidden;
+}
+
+.eval-bar {
+    position: absolute;
+    bottom: 50%;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background-color: #4CAF50;
+    transition: all 0.3s ease;
+    transform-origin: bottom;
+}
+
+#eval-text {
+    font-size: calc(0.8vw + 8px);
+    margin-top: 4px;
+}
+
+.debug-panel {
+    margin: 15px auto;
+    max-width: 600px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f8f8f8;
+    padding: 10px;
+}
+
+.debug-panel h4 {
+    margin-top: 0;
+    text-align: center;
+    color: #555;
+}
+
+#skill-slider {
+    width: 100%;
+    margin: 10px 0;
+}
