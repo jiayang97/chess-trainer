@@ -120,7 +120,7 @@
 }
 
 .selected-side {
-    border-color: #4CAF50;
+    border-color: #666666;
     background-color: #f0f0f0;
 }
 
@@ -137,32 +137,12 @@
 }
 
 .button-controls button:hover {
-    background-color: #45a049;
-}
-
-.suggestion-square-from {
-    box-shadow: inset 0 0 5px 5px rgba(0, 255, 0, 0.5);
-    background-color: rgba(0, 255, 0, 0.2) !important;
-}
-
-.suggestion-square-to {
-    box-shadow: inset 0 0 5px 5px rgba(0, 255, 0, 0.8);
-    background-color: rgba(0, 255, 0, 0.3) !important;
+    background-color: #e0e0e0;
 }
 
 .blunder-square {
     box-shadow: inset 0 0 5px 5px rgba(255, 0, 0, 0.7);
     background-color: rgba(255, 0, 0, 0.2) !important;
-}
-
-.move-arrow {
-    position: absolute;
-    pointer-events: none;
-    z-index: 1000;
-}
-
-.arrow-head {
-    position: absolute;
 }
 
 .evaluation-panel {
@@ -193,7 +173,7 @@
 }
 
 .positive-score {
-    color: green;
+    color: #666666;
 }
 
 .negative-score {
@@ -229,7 +209,7 @@
     left: 0;
     width: 100%;
     height: 50%;
-    background-color: #4CAF50;
+    background-color: #666666;
     transition: all 0.3s ease;
     transform-origin: bottom;
 }
@@ -237,21 +217,6 @@
 #eval-text {
     font-size: calc(0.8vw + 8px);
     margin-top: 4px;
-}
-
-.debug-panel {
-    margin: 15px auto;
-    max-width: 600px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    background-color: #f8f8f8;
-    padding: 10px;
-}
-
-.debug-panel h4 {
-    margin-top: 0;
-    text-align: center;
-    color: #555;
 }
 
 #skill-slider {

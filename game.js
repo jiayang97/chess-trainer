@@ -58,24 +58,60 @@ function onDrop(source, target) {
     if (move === null) return 'snapback';
 
     board.position(chess.fen());
-    removeArrows();
     
     // Always evaluate position after a move
     evaluatePosition(function(rawScoreAfter) {
         // Display the score from player's perspective
         displayScore(rawScoreAfter);
         
+        let blunderDetected = false;
+        
         if (rawLastPositionScore !== null) {
-            checkForBlunder(rawLastPositionScore, rawScoreAfter, prevFen);
+            // Check if the move was a blunder
+            const colorJustMoved = chess.turn() === 'w' ? 'b' : 'w';
+            const isHumanMove = colorJustMoved !== computerColor;
+            
+            if (isHumanMove) {
+                const playerScoreBefore = rawLastPositionScore;
+                const playerScoreAfter = rawScoreAfter;
+                let evalChange = playerScoreBefore - playerScoreAfter;
+                
+                if (Math.abs(playerScoreAfter) >= 9000) {
+                    evalChange = (playerScoreAfter < 0) ? 10000 : -10000;
+                }
+                
+                const isBlunderMove = evalChange >= blunderThreshold;
+                
+                if (isBlunderMove) {
+                    blunderDetected = true;
+                    // Find better move before computer's move
+                    findBetterMove(prevFen, function(betterMove) {
+                        if (betterMove) {
+                            document.getElementById('feedback').textContent = 
+                                `Blunder detected! A better move would be: ${betterMove}`;
+                            
+                            // Now make the computer move after showing blunder message
+                            setTimeout(() => {
+                                if (computerColor && computerColor === chess.turn() && !chess.game_over()) {
+                                    setTimeout(makeComputerMove, 1500);
+                                }
+                            }, 2000);
+                        }
+                    });
+                }
+            }
         }
         
         // Store the raw score for next comparison
         rawLastPositionScore = rawScoreAfter;
-    updateStatus();
         
-        // Make computer move if it's computer's turn
-        if (computerColor && computerColor === chess.turn() && !chess.game_over()) {
-            setTimeout(makeComputerMove, 500);
+        if (!blunderDetected) {
+            updateStatus();
+            
+            // Make computer move if it's computer's turn
+            if (computerColor && computerColor === chess.turn() && !chess.game_over()) {
+                setTimeout(makeComputerMove, 500);
+            }
         }
     });
 }
@@ -100,10 +136,6 @@ function evaluatePosition(callback) {
         
         if (response.includes('info') && response.includes('score')) {
             console.log('Raw Stockfish response:', response);
-            
-            // Parse FEN components
-            const fen = chess.fen();
-            const [position, activeColor, castling, enPassant, halfmove, fullmove] = fen.split(' ');
             
             // Determine player's color
             const playerColor = computerColor === 'w' ? 'b' : 'w';
@@ -145,18 +177,10 @@ function evaluatePosition(callback) {
                     const scoreMatch = /score cp ([+-]?\d+)/.exec(response);
                     if (scoreMatch) {
                         evaluation = parseInt(scoreMatch[1]) / 100;
-                        console.log('Position evaluation:', {
-                            rawCentipawns: scoreMatch[1],
-                            convertedToPawns: evaluation,
-                            whoseTurn: chess.turn(),
-                            playerColor: playerColor,
-                            isPlayerTurn: chess.turn() === playerColor
-                        });
                         
                         // Convert score if the current turn is not the player's
                         if (chess.turn() !== playerColor) {
                             evaluation = -evaluation;
-                            console.log('Converting score to player perspective:', evaluation);
                         }
                     }
                 }
@@ -168,55 +192,9 @@ function evaluatePosition(callback) {
         }
     };
     
-    console.log('Sending position to Stockfish:', {
-        fen: chess.fen(),
-        whoseTurn: chess.turn(),
-        playerColor: computerColor === 'w' ? 'b' : 'w',
-        command: 'position fen ' + chess.fen()
-    });
-    
     stockfish.postMessage('stop');
     stockfish.postMessage('position fen ' + chess.fen());
     stockfish.postMessage('go depth 15 movetime 1000');
-}
-
-// Blunder detection and suggestion
-function checkForBlunder(rawScoreBefore, rawScoreAfter, positionFen) {
-    if (rawScoreBefore === null || rawScoreAfter === null) return;
-    
-    const colorJustMoved = chess.turn() === 'w' ? 'b' : 'w';
-    const isHumanMove = colorJustMoved !== computerColor;
-    
-    if (!isHumanMove) {
-        removeArrows();
-        return;
-    }
-    
-    // Scores are already in player's perspective
-    const playerScoreBefore = rawScoreBefore;
-    const playerScoreAfter = rawScoreAfter;
-    
-    // Calculate evaluation change
-    let evalChange = playerScoreBefore - playerScoreAfter;
-    
-    if (Math.abs(playerScoreAfter) >= 9000) {
-        evalChange = (playerScoreAfter < 0) ? 10000 : -10000;
-    }
-    
-    const isBlunderMove = evalChange >= blunderThreshold;
-    
-    if (isBlunderMove) {
-        findBetterMove(positionFen, function(betterMove) {
-            if (betterMove) {
-                document.getElementById('feedback').textContent = 
-                    `Blunder detected! A better move would be: ${betterMove}`;
-                drawArrow(betterMove.substring(0, 2), betterMove.substring(2, 4));
-            }
-        });
-    } else {
-        removeArrows();
-        updateStatus();
-    }
 }
 
 // Move suggestion and computer moves
@@ -277,7 +255,6 @@ function makeComputerMove() {
                     });
                     
                     // Update display
-                    removeArrows();
                     board.position(chess.fen());
                     
                     // Evaluate new position but DON'T store the score
@@ -300,80 +277,20 @@ function makeComputerMove() {
 }
 
 // UI Functions
-function drawArrow(from, to) {
-    removeArrows();
-    
-    const arrow = document.createElement('div');
-    arrow.className = 'move-arrow';
-    document.querySelector('#board').appendChild(arrow);
-    
-    const fromSquare = document.querySelector(`.square-${from}`);
-    const toSquare = document.querySelector(`.square-${to}`);
-    
-    if (!fromSquare || !toSquare) return;
-    
-    const boardElement = document.querySelector('#board');
-    const fromRect = fromSquare.getBoundingClientRect();
-    const toRect = toSquare.getBoundingClientRect();
-    const boardRect = boardElement.getBoundingClientRect();
-    
-    const fromX = fromRect.left + fromRect.width/2 - boardRect.left;
-    const fromY = fromRect.top + fromRect.height/2 - boardRect.top;
-    const toX = toRect.left + toRect.width/2 - boardRect.left;
-    const toY = toRect.top + toRect.height/2 - boardRect.top;
-    
-    const length = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
-    const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-    
-    arrow.style.position = 'absolute';
-    arrow.style.width = `${length}px`;
-    arrow.style.height = '10px';
-    arrow.style.backgroundColor = 'rgba(0, 200, 0, 0.8)';
-    arrow.style.left = `${fromX}px`;
-    arrow.style.top = `${fromY}px`;
-    arrow.style.transformOrigin = '0 50%';
-    arrow.style.transform = `rotate(${angle}deg)`;
-    arrow.style.zIndex = '1000';
-    arrow.style.borderRadius = '4px';
-    arrow.style.pointerEvents = 'none';
-    arrow.style.animation = 'pulse 1.5s infinite';
-    
-    const arrowHead = document.createElement('div');
-    arrowHead.className = 'arrow-head';
-    arrow.appendChild(arrowHead);
-    
-    if (!document.getElementById('arrow-animation')) {
-        const style = document.createElement('style');
-        style.id = 'arrow-animation';
-        style.textContent = `
-            @keyframes pulse {
-                0% { opacity: 0.7; }
-                50% { opacity: 1; }
-                100% { opacity: 0.7; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-function removeArrows() {
-    document.querySelectorAll('.move-arrow').forEach(arrow => arrow.remove());
-}
-
 function displayScore(rawScore) {
     if (rawScore === null) return;
     
     // Determine player's color
     const playerColor = computerColor === 'w' ? 'b' : 'w';
     
-    // Score is already converted to player's perspective in evaluatePosition
-    const playerScore = rawScore; // No need to convert again
+    // Score is already converted to player's perspective
+    const playerScore = rawScore;
     
     // Update evaluation text
     const evalText = document.getElementById('eval-text');
     if (evalText) {
         evalText.textContent = playerScore.toFixed(2);
-        evalText.style.color = playerScore > 0.5 ? 'green' : 
+        evalText.style.color = playerScore > 0.5 ? '#666666' : 
                               playerScore < -0.5 ? 'red' : 'black';
     }
     
@@ -385,7 +302,7 @@ function displayScore(rawScore) {
         
         evalBar.style.height = percentage + '%';
         evalBar.style.bottom = '0';
-        evalBar.style.backgroundColor = playerScore >= 0 ? '#4CAF50' : '#f44336';
+        evalBar.style.backgroundColor = playerScore >= 0 ? '#666666' : '#f44336';
     }
 
     // Update evaluation details panel
@@ -403,15 +320,6 @@ function displayScore(rawScore) {
         document.getElementById('eval-drop').textContent = 
             evalChange.toFixed(2) + (evalChange < 0 ? " (worsened)" : " (improved)");
     }
-    
-    // Debug logging
-    console.log({
-        rawScore: rawScore, // Now this is actually already converted
-        playerColor: playerColor,
-        playerScore: playerScore,
-        rawLastPositionScore: rawLastPositionScore, // This is also already converted
-        previousPlayerScore: previousPlayerScore
-    });
 }
 
 function updateStatus() {
@@ -430,9 +338,6 @@ function updateStatus() {
     } else {
         const currentTurn = chess.turn() === 'w' ? 'White' : 'Black';
         status = `${currentTurn} to move${chess.in_check() ? ', ' + currentTurn + ' is in check' : ''}`;
-        if (computerColor === chess.turn()) {
-            status += ' (Computer\'s turn)';
-        }
     }
 
     document.getElementById('feedback').textContent = status;
@@ -455,7 +360,6 @@ function changeSide(humanColor) {
 function resetGame() {
     chess.reset();
     rawLastPositionScore = null;
-    removeArrows();
     
     const currentOrientation = board.orientation();
     board.position(chess.fen());
@@ -471,7 +375,7 @@ function resetGame() {
     const evalBar = document.getElementById('eval-bar');
     if (evalBar) {
         evalBar.style.height = '50%';  // Neutral position (0.00)
-        evalBar.style.backgroundColor = '#4CAF50';
+        evalBar.style.backgroundColor = '#666666';
     }
     
     document.getElementById('score-before').textContent = '-';
@@ -509,7 +413,6 @@ window.onload = function() {
         findBetterMove(chess.fen(), function(suggestedMove) {
             if (suggestedMove) {
                 document.getElementById('feedback').textContent = `Suggested move: ${suggestedMove}`;
-                drawArrow(suggestedMove.substring(0, 2), suggestedMove.substring(2, 4));
             }
         });
     });
