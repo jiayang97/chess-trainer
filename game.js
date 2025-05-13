@@ -5,7 +5,8 @@ let stockfish = null;
 let engineReady = false;
 let computerColor = null;
 let rawLastPositionScore = null;
-const blunderThreshold = 2.0;
+let preBlunderScore = null; // Add variable to store pre-blunder evaluation
+const blunderThreshold = 1.5; // Adjust this value to change the blunder detection threshold
 
 // Mapping between skill level and approximate Elo
 const skillToElo = [
@@ -59,6 +60,9 @@ function onDrop(source, target) {
 
     board.position(chess.fen());
     
+    // Store the current evaluation before checking for blunder
+    const currentEval = rawLastPositionScore;
+    
     // Always evaluate position after a move
     evaluatePosition(function(rawScoreAfter) {
         // Display the score from player's perspective
@@ -84,6 +88,9 @@ function onDrop(source, target) {
                 
                 if (isBlunderMove) {
                     blunderDetected = true;
+                    preBlunderScore = currentEval; // Store the pre-blunder evaluation
+                    // Show undo button
+                    document.getElementById('undoButton').style.display = 'block';
                     // Find better move before computer's move
                     findBetterMove(prevFen, function(betterMove) {
                         if (betterMove) {
@@ -98,6 +105,10 @@ function onDrop(source, target) {
                             }, 2000);
                         }
                     });
+                } else {
+                    // Hide undo button if no blunder
+                    document.getElementById('undoButton').style.display = 'none';
+                    preBlunderScore = null; // Clear pre-blunder score if no blunder
                 }
             }
         }
@@ -392,6 +403,31 @@ function resetGame() {
     }
 }
 
+// Add undo functionality
+function undoLastMove() {
+    // Undo computer's move if it was the last move
+    if (chess.turn() !== computerColor) {
+        chess.undo();
+    }
+    // Undo player's move
+    chess.undo();
+    
+    // Update the board position
+    board.position(chess.fen());
+    
+    // Hide the undo button
+    document.getElementById('undoButton').style.display = 'none';
+    
+    // Restore the pre-blunder evaluation
+    if (preBlunderScore !== null) {
+        rawLastPositionScore = preBlunderScore;
+        displayScore(preBlunderScore);
+        preBlunderScore = null; // Clear the stored pre-blunder score
+    }
+    
+    updateStatus();
+}
+
 // Initialize everything
 window.onload = function() {
     board = Chessboard('board', {
@@ -453,4 +489,6 @@ window.onload = function() {
             rawLastPositionScore = rawScore;
         });
     }, 2000);
+    
+    document.getElementById('undoButton').addEventListener('click', undoLastMove);
 };

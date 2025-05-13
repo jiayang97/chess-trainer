@@ -35,25 +35,19 @@
                 <div class="button-controls">
                     <button id="suggestButton">Get Computer Suggestion</button>
                     <button id="resetButton">Reset Game</button>
+                    <button id="undoButton" style="display: none; background-color: #4CAF50; color: white; font-weight: bold; border: 2px solid #45a049;">Undo Last Move</button>
                 </div>
             </div>
         </div>
 
         <!-- Middle Column -->
         <div class="middle-column">
+            <div id="feedback" class="prominent-feedback">Initializing chess engine...</div>
             <div id="board"></div>
-            <div id="feedback">Initializing chess engine...</div>
         </div>
 
         <!-- Right Column -->
         <div class="right-column">
-            <div class="live-eval">
-                <div class="eval-bar-container">
-                    <div id="eval-bar" class="eval-bar"></div>
-                </div>
-                <div id="eval-text">0.0</div>
-            </div>
-            
             <div id="eval-details" class="evaluation-panel">
                 <h4>Move Evaluation</h4>
                 <table id="eval-table">
