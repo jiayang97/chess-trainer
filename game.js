@@ -182,7 +182,7 @@ function onDrop(source, target) {
         if (rawLastPositionScore !== null) {
             // Check if the move was a blunder
             const colorJustMoved = chess.turn() === 'w' ? 'b' : 'w';
-            const isHumanMove = colorJustMoved !== computerColor;
+            const isHumanMove = colorJustMoved === computerColor;
             
             if (isHumanMove) {
                 const playerScoreBefore = rawLastPositionScore;
@@ -237,7 +237,7 @@ function onDrop(source, target) {
         rawLastPositionScore = rawScoreAfter;
         
         if (!blunderDetected) {
-    updateStatus();
+            updateStatus();
             
             // Make computer move if it's computer's turn and game isn't over
             if (computerColor && computerColor === chess.turn() && !chess.game_over()) {
