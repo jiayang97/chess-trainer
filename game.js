@@ -598,8 +598,30 @@ window.onload = function() {
         onDragStart: onDragStart,
         onDrop: onDrop,
         onSnapEnd: onSnapEnd,
-        showArrows: true
+        showArrows: true,
+        moveSpeed: 200,
+        trashSpeed: 100,
+        appearSpeed: 200,
+        snapbackSpeed: 200,
+        snapSpeed: 200,
+        moveNotation: 'san'
     });
+    
+    // Add touch event handling
+    const boardElement = document.getElementById('board');
+    if (boardElement) {
+        boardElement.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+        
+        boardElement.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+        
+        boardElement.addEventListener('touchend', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    }
     
     // Add event listener for evaluation toggle button
     document.getElementById('toggleEvalButton').addEventListener('click', toggleEvaluationMetrics);
