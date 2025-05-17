@@ -14,8 +14,8 @@
         <div class="left-column">
             <div id="computer-controls">
                 <div class="difficulty-control">
-                    <label for="skill-slider">Engine Strength: <span id="elo-display">1500</span> Elo</label>
-                    <input type="range" id="skill-slider" min="0" max="20" value="10">
+                    <label for="skill-slider">Engine Strength: <span id="elo-display">1500</span> <span class="elo-text">Elo</span></label>
+                    <input type="range" id="skill-slider" min="0" max="10" value="5">
                 </div>
                 
                 <div class="side-selector">
@@ -45,19 +45,23 @@
 
         <!-- Middle Column -->
         <div class="middle-column">
-            <div id="computer-thinking" class="status-message computer-status">Choose your side to begin</div>
+            <div id="computer-thinking" class="status-message computer-status">Loading engine</div>
             <div id="board"></div>
         </div>
 
         <!-- Right Column -->
         <div class="right-column">
+            <button id="toggleEvalButton" class="button-controls">Show Evaluation</button>
             <div id="eval-details" class="evaluation-panel">
+                <div class="live-eval">
+                    <div id="eval-text">0.00</div>
+                </div>
                 <h4>Move Evaluation</h4>
                 <table id="eval-table">
                     <tr><td>Player:</td><td id="player-color">-</td></tr>
                     <tr><td>Score Before:</td><td id="score-before">-</td></tr>
                     <tr><td>Score After:</td><td id="score-after">-</td></tr>
-                    <tr><td>Evaluation Drop:</td><td id="eval-drop">-</td></tr>
+                    <tr><td>Evaluation Change:</td><td id="eval-change">-</td></tr>
                     <tr><td>Blunder:</td><td id="is-blunder">-</td></tr>
                     <tr><td>Thresholds:</td><td id="thresholds">-</td></tr>
                 </table>
@@ -65,8 +69,27 @@
         </div>
     </div>
 
+    <!-- Info Button -->
+    <button id="infoButton" class="info-button" title="About">ℹ️</button>
+
+    <!-- Info Modal -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Chess Trainer: Learn While You Play</h2>
+            <p>Master chess through immediate feedback:</p>
+            <ul>
+                <li>Play against a chess engine with adjustable strength (600-2300 Elo rating)</li>
+                <li>Detects any blunder made and provides visual move suggestions</li>
+                <li>Evaluation table to visualize your current position score</li>
+            </ul>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://unpkg.com/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://unpkg.com/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js.map"></script>
     <script src="chess.js?v=123"></script>
     <script src="game.js?v=123"></script>
 </body>

@@ -10,9 +10,110 @@ const blunderThreshold = 1.5; // Adjust this value to change the blunder detecti
 
 // Mapping between skill level and approximate Elo
 const skillToElo = [
-    600, 800, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700,
-    1800, 1900, 2000, 2100, 2200, 2300
+    600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2100, 2200, 2300,
+    2400, 2500, 2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300
 ];
+
+// Function to draw an arrow on the board
+function drawArrow(from, to, color = '#495057') {
+    // Remove any existing arrows
+    clearArrows();
+    
+    // Get the board element
+    const boardElement = document.getElementById('board');
+    
+    // Create SVG element if it doesn't exist
+    let svg = document.getElementById('board-arrows');
+    if (!svg) {
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('id', 'board-arrows');
+        boardElement.appendChild(svg);
+    }
+    
+    // Get the board's dimensions
+    const boardWidth = boardElement.offsetWidth;
+    const boardHeight = boardElement.offsetHeight;
+    
+    // Get the square size
+    const squareSize = boardWidth / 8;
+    
+    // Get the board orientation
+    const orientation = board.orientation();
+    
+    // Convert algebraic notation to coordinates based on orientation
+    let fromFile, fromRank, toFile, toRank;
+    
+    if (orientation === 'white') {
+        fromFile = from.charCodeAt(0) - 'a'.charCodeAt(0);
+        fromRank = 8 - parseInt(from[1]);
+        toFile = to.charCodeAt(0) - 'a'.charCodeAt(0);
+        toRank = 8 - parseInt(to[1]);
+    } else {
+        fromFile = 7 - (from.charCodeAt(0) - 'a'.charCodeAt(0));
+        fromRank = parseInt(from[1]) - 1;
+        toFile = 7 - (to.charCodeAt(0) - 'a'.charCodeAt(0));
+        toRank = parseInt(to[1]) - 1;
+    }
+    
+    // Calculate center points of squares
+    const fromX = (fromFile + 0.5) * squareSize;
+    const fromY = (fromRank + 0.5) * squareSize;
+    const toX = (toFile + 0.5) * squareSize;
+    const toY = (toRank + 0.5) * squareSize;
+    
+    // Create arrow path
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    
+    // Calculate arrow path
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const angle = Math.atan2(dy, dx);
+    const length = Math.sqrt(dx * dx + dy * dy);
+    
+    // Adjust length to not overlap with pieces
+    const adjustedLength = length * 0.95; // Reduce length by only 5% to make tail longer
+    const adjustedToX = fromX + Math.cos(angle) * adjustedLength;
+    const adjustedToY = fromY + Math.sin(angle) * adjustedLength;
+    
+    // Create arrow path
+    const pathData = `M ${fromX} ${fromY} L ${adjustedToX} ${adjustedToY}`;
+    path.setAttribute('d', pathData);
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '10'); // Reduced from 15 to 10
+    path.setAttribute('marker-end', `url(#arrowhead-${color})`);
+    
+    // Create arrowhead marker if it doesn't exist
+    if (!document.getElementById(`arrowhead-${color}`)) {
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        marker.setAttribute('id', `arrowhead-${color}`);
+        marker.setAttribute('viewBox', '0 0 10 10');
+        marker.setAttribute('refX', '5');
+        marker.setAttribute('refY', '5');
+        marker.setAttribute('markerWidth', '3'); // Make arrowhead smaller
+        marker.setAttribute('markerHeight', '3'); // Make arrowhead smaller
+        marker.setAttribute('orient', 'auto');
+        
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+        path.setAttribute('fill', color);
+        path.setAttribute('stroke', 'none'); // Remove stroke from arrowhead
+        
+        marker.appendChild(path);
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+    }
+    
+    svg.appendChild(path);
+}
+
+// Function to clear all arrows
+function clearArrows() {
+    const svg = document.getElementById('board-arrows');
+    if (svg) {
+        svg.innerHTML = '';
+    }
+}
 
 // Initialize Stockfish
 function initializeStockfish() {
@@ -28,7 +129,12 @@ function initializeStockfish() {
             } 
             else if (message === 'readyok') {
                 engineReady = true;
-                document.getElementById('computer-thinking').textContent = 'Choose your side to begin';
+                document.getElementById('computer-thinking').textContent = 'Engine Ready';
+                // Update feedback message if it's showing initialization message
+                const feedback = document.getElementById('blunder-feedback');
+                if (feedback.textContent === 'Chess engine is still initializing') {
+                    feedback.textContent = 'Engine Ready';
+                }
             }
         };
         
@@ -49,6 +155,9 @@ function onDragStart(source, piece) {
 }
 
 function onDrop(source, target) {
+    // Clear any existing arrows when a new move is made
+    clearArrows();
+    
     const prevFen = chess.fen();
     const move = chess.move({
         from: source,
@@ -93,12 +202,17 @@ function onDrop(source, target) {
                     findBetterMove(prevFen, function(betterMove) {
                         if (betterMove) {
                             document.getElementById('blunder-feedback').innerHTML = 
-                                `<span>Blunder detected!</span> A better move would be: ${betterMove}`;
+                                `<span class="blunder-text">Blunder detected!</span> A better move would be: ${betterMove}`;
                             document.getElementById('blunder-feedback').classList.add('blunder');
                             // Show undo button after blunder feedback
                             document.getElementById('undoButton').style.display = 'block';
                             // Show the feedback container
                             document.querySelector('.feedback-container').classList.add('visible');
+                            
+                            // Add arrow for the recommended move
+                            const from = betterMove.substring(0, 2);
+                            const to = betterMove.substring(2, 4);
+                            drawArrow(from, to, '#d32f2f'); // Use red color for blunder arrows
                             
                             // Now make the computer move after showing blunder message
                             setTimeout(() => {
@@ -140,11 +254,11 @@ function onSnapEnd() {
 // Position evaluation function
 function evaluatePosition(callback) {
     if (!stockfish || !engineReady) {
-        if (callback) callback(null);
+        if (callback) callback(0);
         return;
     }
     
-    let evaluation = null;
+    let evaluation = 0;
     let depth = 0;
     
     const originalHandler = stockfish.onmessage;
@@ -169,16 +283,12 @@ function evaluatePosition(callback) {
                         // Determine if current side to move is winning or losing
                         const sideToMoveIsWinning = mateInN > 0;
                         
-                        // Determine if the current side to move is the player or computer
-                        const isPlayerTurn = chess.turn() === playerColor;
-                        
                         // Set score based on whether player is winning or losing
-                        if (isPlayerTurn) {
-                            // Player's turn
-                            evaluation = sideToMoveIsWinning ? 9900 : -9900;
-                        } else {
-                            // Computer's turn
-                            evaluation = sideToMoveIsWinning ? -9900 : 9900;
+                        evaluation = sideToMoveIsWinning ? 9900 : -9900;
+                        
+                        // If it's not player's turn, flip the evaluation
+                        if (chess.turn() !== playerColor) {
+                            evaluation = -evaluation;
                         }
                         
                         console.log('Mate detected:', {
@@ -186,7 +296,6 @@ function evaluatePosition(callback) {
                             whoseTurn: chess.turn(),
                             playerColor: playerColor,
                             sideToMoveIsWinning: sideToMoveIsWinning,
-                            isPlayerTurn: isPlayerTurn,
                             finalScore: evaluation
                         });
                     }
@@ -195,7 +304,7 @@ function evaluatePosition(callback) {
                     if (scoreMatch) {
                         evaluation = parseInt(scoreMatch[1]) / 100;
                         
-                        // Convert score if the current turn is not the player's
+                        // If it's not player's turn, flip the evaluation
                         if (chess.turn() !== playerColor) {
                             evaluation = -evaluation;
                         }
@@ -245,8 +354,6 @@ function findBetterMove(fen, callback) {
 function makeComputerMove() {
     if (chess.game_over() || !computerColor || computerColor !== chess.turn()) return;
     
-    document.getElementById('computer-thinking').textContent = 'Computer is thinking...';
-    
     evaluatePosition(function(rawScoreBefore) {
         // Set skill level
         const skillLevel = parseInt(document.getElementById('skill-slider').value);
@@ -295,7 +402,9 @@ function makeComputerMove() {
 
 // UI Functions
 function displayScore(rawScore) {
-    if (rawScore === null) return;
+    if (rawScore === null) {
+        rawScore = 0;
+    }
     
     // Determine player's color
     const playerColor = computerColor === 'w' ? 'b' : 'w';
@@ -310,32 +419,46 @@ function displayScore(rawScore) {
         evalText.style.color = playerScore > 0.5 ? '#666666' : 
                               playerScore < -0.5 ? 'red' : 'black';
     }
-    
-    // Update evaluation bar
-    const evalBar = document.getElementById('eval-bar');
-    if (evalBar) {
-        const clampedScore = Math.max(-5, Math.min(5, playerScore));
-        const percentage = ((clampedScore + 5) / 10) * 100;
-        
-        evalBar.style.height = percentage + '%';
-        evalBar.style.bottom = '0';
-        evalBar.style.backgroundColor = playerScore >= 0 ? '#666666' : '#f44336';
-    }
 
     // Update evaluation details panel
-    document.getElementById('player-color').textContent = playerColor === 'w' ? 'White' : 'Black';
+    const playerColorElement = document.getElementById('player-color');
+    if (playerColorElement) {
+        playerColorElement.textContent = playerColor === 'w' ? 'White' : 'Black';
+    }
     
     // Previous score is also already in player's perspective
-    const previousPlayerScore = rawLastPositionScore;
+    const previousPlayerScore = rawLastPositionScore || 0;
     
-    document.getElementById('score-before').textContent = previousPlayerScore ? previousPlayerScore.toFixed(2) : '-';
-    document.getElementById('score-after').textContent = playerScore.toFixed(2);
+    const scoreBeforeElement = document.getElementById('score-before');
+    if (scoreBeforeElement) {
+        scoreBeforeElement.textContent = previousPlayerScore.toFixed(2);
+    }
+    
+    const scoreAfterElement = document.getElementById('score-after');
+    if (scoreAfterElement) {
+        scoreAfterElement.textContent = playerScore.toFixed(2);
+    }
     
     // Calculate evaluation change
-    if (previousPlayerScore !== null) {
-        const evalChange = playerScore - previousPlayerScore;
-        document.getElementById('eval-drop').textContent = 
+    const evalChange = playerScore - previousPlayerScore;
+    const evalChangeElement = document.getElementById('eval-change');
+    if (evalChangeElement) {
+        evalChangeElement.textContent = 
             evalChange.toFixed(2) + (evalChange < 0 ? " (worsened)" : " (improved)");
+    }
+}
+
+// Function to toggle evaluation metrics visibility
+function toggleEvaluationMetrics() {
+    const evalPanel = document.querySelector('.evaluation-panel');
+    const toggleButton = document.getElementById('toggleEvalButton');
+    
+    if (evalPanel.classList.contains('visible')) {
+        evalPanel.classList.remove('visible');
+        toggleButton.textContent = 'Show Evaluation';
+    } else {
+        evalPanel.classList.add('visible');
+        toggleButton.textContent = 'Hide Evaluation';
     }
 }
 
@@ -354,7 +477,8 @@ function updateStatus() {
         }
     } else {
         const currentTurn = chess.turn() === 'w' ? 'White' : 'Black';
-        status = `${currentTurn} to move${chess.in_check() ? ', ' + currentTurn + ' is in check' : ''}`;
+        const isComputerTurn = computerColor === chess.turn();
+        status = `${currentTurn} to move${chess.in_check() ? ', ' + currentTurn + ' is in check' : ''}${isComputerTurn ? ' (Engine is thinking...)' : ''}`;
     }
 
     document.getElementById('computer-thinking').textContent = status;
@@ -417,13 +541,16 @@ function resetGame() {
     
     document.getElementById('score-before').textContent = '0.00';
     document.getElementById('score-after').textContent = '0.00';
-    document.getElementById('eval-drop').textContent = '0.00';
+    document.getElementById('eval-change').textContent = '0.00';
     
     // Clear blunder feedback and hide undo button
     document.getElementById('blunder-feedback').textContent = '';
     document.getElementById('blunder-feedback').classList.remove('blunder');
     document.getElementById('undoButton').style.display = 'none';
     document.querySelector('.feedback-container').classList.remove('visible');
+    
+    // Clear any arrows on the board
+    clearArrows();
     
     updateStatus();
     
@@ -450,6 +577,9 @@ function undoLastMove() {
     document.getElementById('blunder-feedback').classList.remove('blunder');
     document.getElementById('undoButton').style.display = 'none';
     
+    // Clear any arrows on the board
+    clearArrows();
+    
     // Restore the pre-blunder evaluation
     if (preBlunderScore !== null) {
         rawLastPositionScore = preBlunderScore;
@@ -467,20 +597,54 @@ window.onload = function() {
         position: 'start',
         onDragStart: onDragStart,
         onDrop: onDrop,
-        onSnapEnd: onSnapEnd
+        onSnapEnd: onSnapEnd,
+        showArrows: true
+    });
+    
+    // Add event listener for evaluation toggle button
+    document.getElementById('toggleEvalButton').addEventListener('click', toggleEvaluationMetrics);
+    
+    // Add event listeners for info modal
+    const modal = document.getElementById('infoModal');
+    const infoButton = document.getElementById('infoButton');
+    const closeButton = document.querySelector('.close-button');
+    
+    infoButton.addEventListener('click', function() {
+        modal.classList.add('show');
+    });
+    
+    closeButton.addEventListener('click', function() {
+        modal.classList.remove('show');
+    });
+    
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.classList.remove('show');
+        }
     });
     
     document.getElementById('suggestButton').addEventListener('click', () => {
         if (!stockfish || !engineReady) {
-            document.getElementById('feedback').textContent = 
+            document.getElementById('blunder-feedback').textContent = 
                 !stockfish ? 'Chess engine not initialized' : 'Chess engine is still initializing';
+            document.querySelector('.feedback-container').classList.add('visible');
             return;
         }
         
-        document.getElementById('feedback').textContent = 'Thinking...';
+        // Clear any existing arrows
+        clearArrows();
+        
+        // Show feedback container and display thinking message
+        document.querySelector('.feedback-container').classList.add('visible');
+        document.getElementById('blunder-feedback').textContent = 'Thinking...';
+        
         findBetterMove(chess.fen(), function(suggestedMove) {
             if (suggestedMove) {
-                document.getElementById('feedback').textContent = `Suggested move: ${suggestedMove}`;
+                document.getElementById('blunder-feedback').textContent = `Suggested move: ${suggestedMove}`;
+                // Add arrow for the suggested move
+                const from = suggestedMove.substring(0, 2);
+                const to = suggestedMove.substring(2, 4);
+                drawArrow(from, to); // Use default color (#495057)
             }
         });
     });
@@ -492,7 +656,8 @@ window.onload = function() {
     
     skillSlider.addEventListener('input', function() {
         const skillLevel = parseInt(this.value);
-        eloDisplay.textContent = skillToElo[skillLevel];
+        const eloValue = skillToElo[skillLevel];
+        eloDisplay.textContent = eloValue;
         if (stockfish && engineReady) {
             stockfish.postMessage('setoption name Skill Level value ' + skillLevel);
         }
@@ -519,9 +684,22 @@ window.onload = function() {
     
     // Set initial state - default to white
     document.getElementById('select-white').classList.add('selected-side');
-    changeSide('w');  // Initialize with white side selected
     
-    document.getElementById('undoButton').addEventListener('click', undoLastMove);
+    // Don't call changeSide immediately, wait for engine to be ready
+    const checkEngine = setInterval(() => {
+        if (engineReady) {
+            clearInterval(checkEngine);
+            changeSide('w');  // Initialize with white side selected
+        }
+    }, 100);
+    
+    // Set up undo button with red color
+    const undoButton = document.getElementById('undoButton');
+    undoButton.addEventListener('click', undoLastMove);
+    undoButton.style.backgroundColor = '#f44336'; // Set button color to red
+    undoButton.style.color = 'white'; // Set text color to white for better contrast
+    undoButton.style.borderColor = '#f44336'; // Set border color to red
+    undoButton.style.border = '2px solid #f44336'; // Set border style and color
     
     setTimeout(() => {
         evaluatePosition(function(rawScore) {
