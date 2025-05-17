@@ -598,13 +598,7 @@ window.onload = function() {
         onDragStart: onDragStart,
         onDrop: onDrop,
         onSnapEnd: onSnapEnd,
-        showArrows: true,
-        moveSpeed: 200,
-        trashSpeed: 100,
-        appearSpeed: 200,
-        snapbackSpeed: 200,
-        snapSpeed: 200,
-        moveNotation: 'san'
+        showArrows: true
     });
     
     // Add touch event handling
