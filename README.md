@@ -12,7 +12,7 @@ A web-based chess training application that helps you improve your game by provi
 
 ## Live Demo
 
-[Play Chess Trainer](https://[your-github-username].github.io/chess-trainer)
+[Play Chess Trainer](https://jiayang97.github.io/chess-trainer)
 
 ## Technologies Used
 
@@ -25,10 +25,18 @@ A web-based chess training application that helps you improve your game by provi
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/[your-github-username]/chess-trainer.git
+git clone https://github.com/jiayang97/chess-trainer.git
 ```
 
 2. Open `index.html` in your web browser
+
+## Mobile Usage
+
+The application is fully responsive and works well on mobile devices:
+- The chess board automatically resizes to fit your screen
+- Drag and drop pieces just like on desktop
+- Toggle the evaluation panel to save space
+- Info button is positioned in the bottom right for easy access
 
 ## License
 
