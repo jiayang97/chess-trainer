@@ -26,61 +26,106 @@ body {
 }
 
 /* Mobile Responsive Layout */
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
     .container {
-        flex-direction: column;
-        height: auto;
+        flex-direction: column !important;
+        height: auto !important;
         min-height: 100vh;
-        margin: 0;
-        padding: 5px;
+        margin: 0 !important;
+        padding: 5px !important;
         border-radius: 0;
+        overflow-x: hidden;
     }
 
     .left-column, .right-column {
-        width: 100%;
-        min-width: unset;
-        padding: 10px;
-        margin-bottom: 10px;
+        width: 100% !important;
+        min-width: unset !important;
+        padding: 8px !important;
+        margin-bottom: 5px !important;
+        box-sizing: border-box !important;
+        background: transparent !important;
+        box-shadow: none !important;
     }
 
     .middle-column {
-        width: 100%;
-        max-width: 100%;
-        padding: 5px;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 5px !important;
+        order: -1; /* Make board appear first */
     }
 
     #board {
-        width: 100%;
-        max-width: 100vw;
-        margin: 0 auto;
+        width: 100% !important;
+        max-width: 100vw !important;
+        margin: 0 auto !important;
+    }
+
+    .button-controls {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+        margin: 5px 0 !important;
     }
 
     .button-controls button,
     #toggleEvalButton {
-        padding: 8px;
-        font-size: 13px;
+        padding: 6px !important;
+        font-size: 12px !important;
+        flex: 1 !important;
+        min-width: 100px !important;
+        margin: 0 !important;
     }
 
     .status-message {
-        font-size: 14px;
-        padding: 6px 10px;
+        font-size: 13px !important;
+        padding: 4px 8px !important;
+        width: 100% !important;
+        margin: 5px 0 !important;
     }
 
     .evaluation-panel {
-        font-size: 13px;
+        font-size: 12px !important;
+        padding: 8px !important;
     }
 
     #eval-text {
-        font-size: 24px;
+        font-size: 20px !important;
     }
 
     .piece-option {
-        padding: 10px;
-        width: 60px;
+        padding: 8px !important;
+        width: 50px !important;
     }
 
     .difficulty-control {
-        padding: 10px;
+        padding: 8px !important;
+        margin: 5px 0 !important;
+    }
+
+    .piece-selector {
+        justify-content: center !important;
+        gap: 8px !important;
+        margin: 5px 0 !important;
+    }
+
+    .side-selector p {
+        margin: 5px 0 !important;
+        font-size: 13px !important;
+    }
+
+    .feedback-container {
+        margin: 5px 0 !important;
+        padding: 5px !important;
+    }
+
+    #blunder-feedback {
+        font-size: 12px !important;
+    }
+
+    #undoButton {
+        padding: 6px !important;
+        font-size: 12px !important;
     }
 }
 
