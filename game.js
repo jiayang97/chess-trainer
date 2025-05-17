@@ -237,9 +237,9 @@ function onDrop(source, target) {
         rawLastPositionScore = rawScoreAfter;
         
         if (!blunderDetected) {
-            updateStatus();
+    updateStatus();
             
-            // Make computer move if it's computer's turn
+            // Make computer move if it's computer's turn and game isn't over
             if (computerColor && computerColor === chess.turn() && !chess.game_over()) {
                 setTimeout(makeComputerMove, 500);
             }
@@ -284,7 +284,7 @@ function evaluatePosition(callback) {
                         const sideToMoveIsWinning = mateInN > 0;
                         
                         // Set score based on whether player is winning or losing
-                        evaluation = sideToMoveIsWinning ? 9900 : -9900;
+                            evaluation = sideToMoveIsWinning ? 9900 : -9900;
                         
                         // If it's not player's turn, flip the evaluation
                         if (chess.turn() !== playerColor) {
@@ -298,6 +298,9 @@ function evaluatePosition(callback) {
                             sideToMoveIsWinning: sideToMoveIsWinning,
                             finalScore: evaluation
                         });
+
+                        // Force update status when mate is detected
+                        updateStatus();
                     }
                 } else {
                     const scoreMatch = /score cp ([+-]?\d+)/.exec(response);
@@ -380,7 +383,7 @@ function makeComputerMove() {
                     
                     // Update display
                     board.position(chess.fen());
-                    updateStatus(); // Update status instead of clearing the message
+                    updateStatus(); // Update status after computer move
                     
                     // Evaluate new position but DON'T store the score
                     evaluatePosition(function(rawScoreAfter) {
@@ -440,7 +443,7 @@ function displayScore(rawScore) {
     }
     
     // Calculate evaluation change
-    const evalChange = playerScore - previousPlayerScore;
+        const evalChange = playerScore - previousPlayerScore;
     const evalChangeElement = document.getElementById('eval-change');
     if (evalChangeElement) {
         evalChangeElement.textContent = 
@@ -464,24 +467,30 @@ function toggleEvaluationMetrics() {
 
 function updateStatus() {
     let status = '';
+    const statusElement = document.getElementById('computer-thinking');
 
     if (chess.game_over()) {
         if (chess.in_checkmate()) {
             status = 'Game over: ' + (chess.turn() === 'w' ? 'Black' : 'White') + ' wins by checkmate';
+            statusElement.classList.add('checkmate');
+            console.log('Checkmate detected:', status); // Debug log
         } else {
             status = chess.in_draw() ? 'Game over: Draw' :
                     chess.in_stalemate() ? 'Game over: Stalemate' :
                     chess.in_threefold_repetition() ? 'Game over: Draw by repetition' :
                     chess.insufficient_material() ? 'Game over: Draw by insufficient material' :
                     'Game over';
+            statusElement.classList.remove('checkmate');
         }
     } else {
         const currentTurn = chess.turn() === 'w' ? 'White' : 'Black';
         const isComputerTurn = computerColor === chess.turn();
         status = `${currentTurn} to move${chess.in_check() ? ', ' + currentTurn + ' is in check' : ''}${isComputerTurn ? ' (Engine is thinking...)' : ''}`;
+        statusElement.classList.remove('checkmate');
     }
 
-    document.getElementById('computer-thinking').textContent = status;
+    statusElement.textContent = status;
+    console.log('Status updated:', status); // Debug log
 }
 
 // Game control functions
@@ -511,7 +520,7 @@ function changeSide(humanColor) {
             const checkEngine = setInterval(() => {
                 if (engineReady) {
                     clearInterval(checkEngine);
-                    setTimeout(makeComputerMove, 500);
+        setTimeout(makeComputerMove, 500);
                 }
             }, 100);
         }
