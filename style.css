@@ -26,38 +26,58 @@ body {
 }
 
 /* Mobile Responsive Layout */
-@media screen and (max-width: 768px) {
+@media only screen and (max-width: 768px), 
+       only screen and (max-device-width: 768px) {
+    body {
+        overflow-x: hidden;
+        width: 100vw;
+        touch-action: pan-y pinch-zoom; /* Allow vertical scroll but prevent horizontal */
+    }
+
     .container {
+        display: flex !important;
         flex-direction: column !important;
         height: auto !important;
         min-height: 100vh;
         margin: 0 !important;
-        padding: 5px !important;
+        padding: 0 !important;
         border-radius: 0;
         overflow-x: hidden;
+        gap: 0 !important;
+        width: 100vw !important;
+    }
+
+    /* Prevent touch events from scrolling the page when interacting with the board */
+    #board, .chessboard, .square-55d63 {
+        touch-action: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+    }
+
+    .middle-column {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        padding: 0 !important;
+        order: -1; /* Make board appear first */
+        margin: 0 !important;
+    }
+
+    #board {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
     }
 
     .left-column, .right-column {
         width: 100% !important;
         min-width: unset !important;
         padding: 8px !important;
-        margin-bottom: 5px !important;
+        margin: 0 !important;
         box-sizing: border-box !important;
         background: transparent !important;
         box-shadow: none !important;
-    }
-
-    .middle-column {
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 5px !important;
-        order: -1; /* Make board appear first */
-    }
-
-    #board {
-        width: 100% !important;
-        max-width: 100vw !important;
-        margin: 0 auto !important;
     }
 
     .button-controls {
@@ -82,11 +102,13 @@ body {
         padding: 4px 8px !important;
         width: 100% !important;
         margin: 5px 0 !important;
+        border-radius: 0 !important;
     }
 
     .evaluation-panel {
         font-size: 12px !important;
         padding: 8px !important;
+        margin: 0 !important;
     }
 
     #eval-text {
@@ -126,6 +148,12 @@ body {
     #undoButton {
         padding: 6px !important;
         font-size: 12px !important;
+    }
+
+    /* Ensure the board takes up the full width of the viewport */
+    .chessboard {
+        width: 100vw !important;
+        height: 100vw !important;
     }
 }
 
