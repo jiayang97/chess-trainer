@@ -35,6 +35,9 @@
                 <div class="button-controls">
                     <button id="suggestButton">Get Computer Suggestion</button>
                     <button id="resetButton">Reset Game</button>
+                </div>
+                <div class="feedback-container">
+                    <div id="blunder-feedback" class="prominent-feedback blunder-status"></div>
                     <button id="undoButton" style="display: none; background-color: #4CAF50; color: white; font-weight: bold; border: 2px solid #45a049;">Undo Last Move</button>
                 </div>
             </div>
@@ -42,7 +45,7 @@
 
         <!-- Middle Column -->
         <div class="middle-column">
-            <div id="feedback" class="prominent-feedback">Initializing chess engine...</div>
+            <div id="computer-thinking" class="status-message computer-status">Choose your side to begin</div>
             <div id="board"></div>
         </div>
 
