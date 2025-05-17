@@ -16,20 +16,79 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     max-width: 95vw;
-    margin: 20px auto;
-    padding: 20px;
+    margin: 10px auto;
+    padding: 10px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    height: calc(100vh - 40px);
+    height: calc(100vh - 20px);
     box-sizing: border-box;
+}
+
+/* Mobile Responsive Layout */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        margin: 0;
+        padding: 5px;
+        border-radius: 0;
+    }
+
+    .left-column, .right-column {
+        width: 100%;
+        min-width: unset;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+
+    .middle-column {
+        width: 100%;
+        max-width: 100%;
+        padding: 5px;
+    }
+
+    #board {
+        width: 100%;
+        max-width: 100vw;
+        margin: 0 auto;
+    }
+
+    .button-controls button,
+    #toggleEvalButton {
+        padding: 8px;
+        font-size: 13px;
+    }
+
+    .status-message {
+        font-size: 14px;
+        padding: 6px 10px;
+    }
+
+    .evaluation-panel {
+        font-size: 13px;
+    }
+
+    #eval-text {
+        font-size: 24px;
+    }
+
+    .piece-option {
+        padding: 10px;
+        width: 60px;
+    }
+
+    .difficulty-control {
+        padding: 10px;
+    }
 }
 
 /* Columns */
 .left-column, .right-column {
     width: 20%;
     min-width: 200px;
-    padding: 20px;
+    padding: 15px;
     background: #f8f9fa;
     border-radius: 8px;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
