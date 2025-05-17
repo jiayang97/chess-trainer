@@ -31,20 +31,22 @@ body {
         flex-direction: column !important;
         padding: 0 !important;
         min-height: 100vh !important;
+        overflow-y: auto !important; /* Allow container to scroll */
+    }
+
+    .middle-column {
+        width: 100% !important;
+        order: 1 !important; /* Changed to 1 to be first */
+        padding: 0 !important;
+        margin: 0 !important;
+        touch-action: pan-y !important; /* Allow vertical scrolling in middle column */
     }
 
     .left-column {
         width: 100% !important;
         padding: 10px !important;
         margin: 0 !important;
-        order: 1 !important;
-    }
-
-    .middle-column {
-        width: 100% !important;
-        order: 2 !important;
-        padding: 0 !important;
-        margin: 0 !important;
+        order: 2 !important; /* Changed to 2 to be second */
     }
 
     .right-column {
@@ -60,10 +62,10 @@ body {
         max-height: 70vh !important;
         max-width: 400px !important;
         margin: 0 auto !important;
+        touch-action: none !important; /* Prevent all touch actions on the board */
     }
 
     /* Prevent touch events from scrolling the page when interacting with the board */
-    #board, 
     .chessboard, 
     .square-55d63,
     .piece-417db,
