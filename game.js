@@ -215,7 +215,7 @@ function onDrop(source, target) {
         
         // For player moves, calculate and display the evaluation change
         if (isPlayerMove) {
-            const evalChange = scoreBefore - rawScoreAfter;
+            const evalChange = rawScoreAfter - scoreBefore;
             displayScore(rawScoreAfter, scoreBefore, evalChange);
         } else {
             // For computer moves, just display the last player's score
