@@ -10,6 +10,13 @@ A web-based chess training application that helps you improve your game by provi
 - Responsive design for both desktop and mobile devices
 - Undo functionality for learning from mistakes
 
+## Screenshots
+### Main Interface
+![Chess Trainer Main Interface](chess_trainer_img/chess_trainer_page.png)
+
+### Blunder Detection
+![Chess Trainer Blunder Detection](chess_trainer_img/chess_trainer_blunder_page.png)
+
 ## Live Demo
 
 [Play Chess Trainer](https://jiayang97.github.io/chess-trainer)
