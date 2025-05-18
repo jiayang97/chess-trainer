@@ -1,17 +1,18 @@
 // Initialize chess.js and core variables
 const chess = new Chess();
 let board = null;
-let stockfish = null;
+let evaluationEngine = null;  // Strong engine for evaluation
+let playingEngine = null;     // Engine for playing at selected ELO
 let engineReady = false;
 let computerColor = null;
-let rawLastPositionScore = null;
-let preBlunderScore = null; // Add variable to store pre-blunder evaluation
-const blunderThreshold = 1.5; // Adjust this value to change the blunder detection threshold
+let playerLastScore = null;   // Renamed from rawLastPositionScore to be more explicit
+let preBlunderScore = null;
+const blunderThreshold = 1.5;
 
 // Mapping between skill level and approximate Elo
 const skillToElo = [
-    600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2100, 2200, 2300,
-    2400, 2500, 2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300
+    400, 600, 800, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200,
+    2300
 ];
 
 // Function to draw an arrow on the board
@@ -115,35 +116,55 @@ function clearArrows() {
     }
 }
 
-// Initialize Stockfish
-function initializeStockfish() {
+// Initialize Stockfish instances
+function initializeEngines() {
     try {
-        stockfish = new Worker('stockfish.js');
-        
-        stockfish.onmessage = function(event) {
+        // Initialize evaluation engine (strong)
+        evaluationEngine = new Worker('stockfish.js');
+        evaluationEngine.onmessage = function(event) {
             const message = event.data;
-            
             if (message === 'uciok') {
-                stockfish.postMessage('setoption name Skill Level value 20');
-                stockfish.postMessage('isready');
+                console.log('Evaluation engine ready');
+                evaluationEngine.postMessage('setoption name Skill Level value 20'); // Max skill
+                evaluationEngine.postMessage('setoption name Skill Level Maximum Error value 0');
+                evaluationEngine.postMessage('setoption name Skill Level Probability value 0');
+                evaluationEngine.postMessage('isready');
+            } 
+            else if (message === 'readyok') {
+                console.log('Evaluation engine fully initialized');
+            }
+        };
+        evaluationEngine.postMessage('uci');
+
+        // Initialize playing engine (adjustable skill)
+        playingEngine = new Worker('stockfish.js');
+        playingEngine.onmessage = function(event) {
+            const message = event.data;
+            if (message === 'uciok') {
+                console.log('Playing engine ready');
+                // Set initial skill level
+                const skillLevel = parseInt(document.getElementById('skill-slider').value);
+                playingEngine.postMessage('setoption name Skill Level value ' + skillLevel);
+                playingEngine.postMessage('setoption name Skill Level Maximum Error value 100');
+                playingEngine.postMessage('setoption name Skill Level Probability value 100');
+                playingEngine.postMessage('isready');
             } 
             else if (message === 'readyok') {
                 engineReady = true;
                 document.getElementById('computer-thinking').textContent = 'Engine Ready';
-                // Update feedback message if it's showing initialization message
                 const feedback = document.getElementById('blunder-feedback');
                 if (feedback.textContent === 'Chess engine is still initializing') {
                     feedback.textContent = 'Engine Ready';
                 }
             }
         };
+        playingEngine.postMessage('uci');
         
-        stockfish.postMessage('uci');
-        return stockfish;
+        return true;
     } catch (error) {
-        console.error('Stockfish initialization error:', error);
+        console.error('Engine initialization error:', error);
         document.getElementById('computer-thinking').textContent = 'Failed to initialize chess engine';
-        return null;
+        return false;
     }
 }
 
@@ -155,6 +176,8 @@ function onDragStart(source, piece) {
 }
 
 function onDrop(source, target) {
+    console.log('Drop event:', { source, target });
+    
     // Clear any existing arrows when a new move is made
     clearArrows();
     
@@ -165,27 +188,54 @@ function onDrop(source, target) {
         promotion: 'q'
     });
 
-    if (move === null) return 'snapback';
+    if (move === null) {
+        console.log('Invalid move, returning snapback');
+        return 'snapback';
+    }
 
+    console.log('Move made:', move);
     board.position(chess.fen());
     
     // Store the current evaluation before checking for blunder
-    const currentEval = rawLastPositionScore;
+    const scoreBefore = playerLastScore;
+    console.log('Current evaluation before move:', scoreBefore);
     
+    console.log('About to call evaluatePosition...');
     // Always evaluate position after a move
     evaluatePosition(function(rawScoreAfter) {
-        // Display the score from player's perspective
-        displayScore(rawScoreAfter);
+        console.log('Position evaluated in onDrop callback:', { 
+            rawScoreAfter,
+            scoreBefore,
+            blunderThreshold
+        });
+        
+        // Determine if this is a player move
+        const colorJustMoved = chess.turn() === 'w' ? 'b' : 'w';
+        const isPlayerMove = colorJustMoved !== computerColor;
+        
+        // For player moves, calculate and display the evaluation change
+        if (isPlayerMove) {
+            const evalChange = scoreBefore - rawScoreAfter;
+            displayScore(rawScoreAfter, scoreBefore, evalChange);
+        } else {
+            // For computer moves, just display the last player's score
+            displayScore(playerLastScore, playerLastScore, 0);
+        }
         
         let blunderDetected = false;
         
-        if (rawLastPositionScore !== null) {
-            // Check if the move was a blunder
-            const colorJustMoved = chess.turn() === 'w' ? 'b' : 'w';
-            const isHumanMove = colorJustMoved === computerColor;
+        if (scoreBefore !== null) {
+            console.log('Move analysis:', {
+                colorJustMoved: colorJustMoved,
+                computerColor: computerColor,
+                isHumanMove: isPlayerMove,
+                scoreBefore: scoreBefore,
+                scoreAfter: rawScoreAfter
+            });
             
-            if (isHumanMove) {
-                const playerScoreBefore = rawLastPositionScore;
+            // Only check for blunders on human moves
+            if (isPlayerMove) {
+                const playerScoreBefore = scoreBefore;
                 const playerScoreAfter = rawScoreAfter;
                 let evalChange = playerScoreBefore - playerScoreAfter;
                 
@@ -195,24 +245,51 @@ function onDrop(source, target) {
                 
                 const isBlunderMove = evalChange >= blunderThreshold;
                 
+                console.log('Blunder check:', {
+                    evalChange: evalChange,
+                    threshold: blunderThreshold,
+                    isBlunder: isBlunderMove,
+                    before: playerScoreBefore,
+                    after: playerScoreAfter,
+                    isHumanMove: isPlayerMove
+                });
+                
                 if (isBlunderMove) {
+                    console.log('Blunder detected! Showing feedback...');
                     blunderDetected = true;
-                    preBlunderScore = currentEval; // Store the pre-blunder evaluation
+                    preBlunderScore = scoreBefore;
+                    
+                    // Show feedback container immediately
+                    const feedbackContainer = document.querySelector('.feedback-container');
+                    const blunderFeedback = document.getElementById('blunder-feedback');
+                    const undoButton = document.getElementById('undoButton');
+                    
+                    console.log('Feedback elements:', {
+                        feedbackContainer: feedbackContainer,
+                        blunderFeedback: blunderFeedback,
+                        undoButton: undoButton
+                    });
+                    
+                    feedbackContainer.classList.add('visible');
+                    blunderFeedback.innerHTML = `<span class="blunder-text">Blunder detected!</span><span style="color: #333;">Analyzing position...</span>`;
+                    blunderFeedback.classList.add('blunder');
+                    undoButton.style.display = 'block';
+                    
+                    console.log('Feedback container classes:', feedbackContainer.classList);
+                    console.log('Blunder feedback classes:', blunderFeedback.classList);
+                    
                     // Find better move before computer's move
                     findBetterMove(prevFen, function(betterMove) {
+                        console.log('Better move found:', betterMove);
                         if (betterMove) {
-                            document.getElementById('blunder-feedback').innerHTML = 
-                                `<span class="blunder-text">Blunder detected!</span> A better move would be: ${betterMove}`;
-                            document.getElementById('blunder-feedback').classList.add('blunder');
-                            // Show undo button after blunder feedback
-                            document.getElementById('undoButton').style.display = 'block';
-                            // Show the feedback container
-                            document.querySelector('.feedback-container').classList.add('visible');
+                            blunderFeedback.innerHTML = 
+                                `<span class="blunder-text">Blunder detected!</span><span style="color: #333;">A better move would be: ${betterMove}</span>`;
                             
                             // Add arrow for the recommended move
                             const from = betterMove.substring(0, 2);
                             const to = betterMove.substring(2, 4);
-                            drawArrow(from, to, '#d32f2f'); // Use red color for blunder arrows
+                            console.log('Drawing arrow:', { from, to });
+                            drawArrow(from, to, '#d32f2f');
                             
                             // Now make the computer move after showing blunder message
                             setTimeout(() => {
@@ -223,18 +300,34 @@ function onDrop(source, target) {
                         }
                     });
                 } else {
-                    // Hide undo button if no blunder
-                    document.getElementById('undoButton').style.display = 'none';
-                    document.getElementById('blunder-feedback').textContent = '';
-                    document.getElementById('blunder-feedback').classList.remove('blunder');
-                    document.querySelector('.feedback-container').classList.remove('visible');
-                    preBlunderScore = null; // Clear pre-blunder score if no blunder
+                    console.log('No blunder detected');
+                    // Hide feedback if no blunder
+                    const feedbackContainer = document.querySelector('.feedback-container');
+                    const blunderFeedback = document.getElementById('blunder-feedback');
+                    const undoButton = document.getElementById('undoButton');
+                    
+                    feedbackContainer.classList.remove('visible');
+                    blunderFeedback.textContent = '';
+                    blunderFeedback.classList.remove('blunder');
+                    undoButton.style.display = 'none';
+                    preBlunderScore = 0;
                 }
+            } else {
+                // For computer moves, ensure feedback is hidden
+                const feedbackContainer = document.querySelector('.feedback-container');
+                const blunderFeedback = document.getElementById('blunder-feedback');
+                const undoButton = document.getElementById('undoButton');
+                
+                feedbackContainer.classList.remove('visible');
+                blunderFeedback.textContent = '';
+                blunderFeedback.classList.remove('blunder');
+                undoButton.style.display = 'none';
+                preBlunderScore = 0;
             }
         }
         
-        // Store the raw score for next comparison
-        rawLastPositionScore = rawScoreAfter;
+        // Update playerLastScore after all calculations are done
+        playerLastScore = rawScoreAfter;
         
         if (!blunderDetected) {
             updateStatus();
@@ -245,6 +338,7 @@ function onDrop(source, target) {
             }
         }
     });
+    console.log('evaluatePosition called, waiting for callback...');
 }
 
 function onSnapEnd() {
@@ -253,7 +347,16 @@ function onSnapEnd() {
 
 // Position evaluation function
 function evaluatePosition(callback) {
-    if (!stockfish || !engineReady) {
+    console.log('evaluatePosition called:', {
+        evaluationEngine: !!evaluationEngine,
+        engineReady,
+        fen: chess.fen(),
+        turn: chess.turn(),
+        computerColor
+    });
+
+    if (!evaluationEngine || !engineReady) {
+        console.log('Evaluation engine not ready:', { evaluationEngine: !!evaluationEngine, engineReady });
         if (callback) callback(0);
         return;
     }
@@ -261,9 +364,16 @@ function evaluatePosition(callback) {
     let evaluation = 0;
     let depth = 0;
     
-    const originalHandler = stockfish.onmessage;
-    stockfish.onmessage = function(event) {
+    console.log('Starting position evaluation:', {
+        fen: chess.fen(),
+        turn: chess.turn(),
+        computerColor: computerColor
+    });
+    
+    const originalHandler = evaluationEngine.onmessage;
+    evaluationEngine.onmessage = function(event) {
         const response = event.data;
+        console.log('Evaluation engine response:', response);
         
         if (response.includes('info') && response.includes('score')) {
             console.log('Raw Stockfish response:', response);
@@ -284,7 +394,7 @@ function evaluatePosition(callback) {
                         const sideToMoveIsWinning = mateInN > 0;
                         
                         // Set score based on whether player is winning or losing
-                            evaluation = sideToMoveIsWinning ? 9900 : -9900;
+                        evaluation = sideToMoveIsWinning ? 9900 : -9900;
                         
                         // If it's not player's turn, flip the evaluation
                         if (chess.turn() !== playerColor) {
@@ -305,40 +415,53 @@ function evaluatePosition(callback) {
                 } else {
                     const scoreMatch = /score cp ([+-]?\d+)/.exec(response);
                     if (scoreMatch) {
-                        evaluation = parseInt(scoreMatch[1]) / 100;
+                        const rawEval = parseInt(scoreMatch[1]) / 100;
                         
-                        // If it's not player's turn, flip the evaluation
+                        // Convert to player's perspective
+                        evaluation = rawEval;
                         if (chess.turn() !== playerColor) {
                             evaluation = -evaluation;
                         }
+                        
+                        console.log('Position evaluation:', {
+                            depth: depth,
+                            rawEval: rawEval,
+                            finalEval: evaluation,
+                            whoseTurn: chess.turn(),
+                            playerColor: playerColor
+                        });
                     }
                 }
             }
         } 
         else if (response.includes('bestmove')) {
-            stockfish.onmessage = originalHandler;
+            console.log('Evaluation complete:', {
+                finalEval: evaluation,
+                depth: depth
+            });
+            evaluationEngine.onmessage = originalHandler;
             if (callback) callback(evaluation);
         }
     };
     
-    stockfish.postMessage('stop');
-    stockfish.postMessage('position fen ' + chess.fen());
-    stockfish.postMessage('go depth 15 movetime 1000');
+    evaluationEngine.postMessage('stop');
+    evaluationEngine.postMessage('position fen ' + chess.fen());
+    evaluationEngine.postMessage('go depth 15 movetime 1000');
 }
 
 // Move suggestion and computer moves
 function findBetterMove(fen, callback) {
-    if (!stockfish || !engineReady) {
+    if (!evaluationEngine || !engineReady) {
         if (callback) callback(null);
         return;
     }
     
-    const originalHandler = stockfish.onmessage;
-    stockfish.onmessage = function(event) {
+    const originalHandler = evaluationEngine.onmessage;
+    evaluationEngine.onmessage = function(event) {
         const response = event.data;
         
         if (response.includes('bestmove')) {
-            stockfish.onmessage = originalHandler;
+            evaluationEngine.onmessage = originalHandler;
             
             const match = response.match(/bestmove\s+(\w+)/);
             if (match && match[1] && match[1] !== '(none)') {
@@ -349,78 +472,84 @@ function findBetterMove(fen, callback) {
         }
     };
     
-    stockfish.postMessage('stop');
-    stockfish.postMessage('position fen ' + fen);
-    stockfish.postMessage('go depth 18 movetime 2000');
+    evaluationEngine.postMessage('stop');
+    evaluationEngine.postMessage('position fen ' + fen);
+    evaluationEngine.postMessage('go depth 18 movetime 2000');
 }
 
 function makeComputerMove() {
     if (chess.game_over() || !computerColor || computerColor !== chess.turn()) return;
     
-    evaluatePosition(function(rawScoreBefore) {
-        // Set skill level
-        const skillLevel = parseInt(document.getElementById('skill-slider').value);
-        stockfish.postMessage('setoption name Skill Level value ' + skillLevel);
-        
-        // Listen for Stockfish's response
-        const originalHandler = stockfish.onmessage;
-        stockfish.onmessage = function(event) {
-            if (event.data.includes('bestmove')) {
-                const match = event.data.match(/bestmove\s+(\w+)/);
+    const skillLevel = parseInt(document.getElementById('skill-slider').value);
+    console.log('Making computer move with skill level:', skillLevel);
+    
+    // Set skill parameters for playing engine
+    playingEngine.postMessage('setoption name Skill Level value ' + skillLevel);
+    
+    const maxError = Math.max(10, 100 - (skillLevel * 4));
+    const probability = Math.max(10, 100 - (skillLevel * 4));
+    
+    playingEngine.postMessage('setoption name Skill Level Maximum Error value ' + maxError);
+    playingEngine.postMessage('setoption name Skill Level Probability value ' + probability);
+    
+    console.log('Playing engine parameters:', { skillLevel, maxError, probability });
+    
+    const originalHandler = playingEngine.onmessage;
+    playingEngine.onmessage = function(event) {
+        if (event.data.includes('bestmove')) {
+            const match = event.data.match(/bestmove\s+(\w+)/);
+            
+            if (match && match[1]) {
+                const computerMove = match[1];
+                const from = computerMove.substring(0, 2);
+                const to = computerMove.substring(2, 4);
+                const promotion = computerMove.length > 4 ? computerMove.substring(4, 5) : '';
                 
-                if (match && match[1]) {
-                    const computerMove = match[1];
-                    const from = computerMove.substring(0, 2);
-                    const to = computerMove.substring(2, 4);
-                    const promotion = computerMove.length > 4 ? computerMove.substring(4, 5) : '';
-                    
-                    // Make the move
-                    chess.move({
-                        from: from,
-                        to: to,
-                        promotion: promotion || 'q'
-                    });
-                    
-                    // Update display
-                    board.position(chess.fen());
-                    updateStatus(); // Update status after computer move
-                    
-                    // Evaluate new position but DON'T store the score
-                    evaluatePosition(function(rawScoreAfter) {
-                        displayScore(rawScoreAfter);
-                        // DO NOT update rawLastPositionScore here
-                    });
-                }
+                console.log('Computer move:', {
+                    move: computerMove,
+                    skillLevel: skillLevel,
+                    elo: skillToElo[skillLevel]
+                });
                 
-                stockfish.onmessage = originalHandler;
+                chess.move({
+                    from: from,
+                    to: to,
+                    promotion: promotion || 'q'
+                });
+                
+                board.position(chess.fen());
+                updateStatus();
+                
+                // Don't evaluate position or update score during computer's turn
+                // Just keep showing the last player's score
+                displayScore(playerLastScore);
             }
-        };
-        
-        // Ask Stockfish for best move
-        stockfish.postMessage('stop');
-        stockfish.postMessage('position fen ' + chess.fen());
-        stockfish.postMessage('go depth 10 movetime 1000');
-    });
+            
+            playingEngine.onmessage = originalHandler;
+        }
+    };
+    
+    const depth = Math.max(3, Math.floor(skillLevel / 3));
+    const moveTime = Math.max(100, 1000 - (skillLevel * 40));
+    
+    console.log('Playing engine search parameters:', { depth, moveTime });
+    playingEngine.postMessage('stop');
+    playingEngine.postMessage('position fen ' + chess.fen());
+    playingEngine.postMessage('go depth ' + depth + ' movetime ' + moveTime);
 }
 
 // UI Functions
-function displayScore(rawScore) {
-    if (rawScore === null) {
-        rawScore = 0;
-    }
-    
-    // Determine player's color
+function displayScore(scoreAfter, scoreBefore, evalChange) {
+    // Determine player's color and turn
     const playerColor = computerColor === 'w' ? 'b' : 'w';
-    
-    // Score is already converted to player's perspective
-    const playerScore = rawScore;
+    const isPlayerTurn = chess.turn() === playerColor;
     
     // Update evaluation text
     const evalText = document.getElementById('eval-text');
     if (evalText) {
-        evalText.textContent = playerScore.toFixed(2);
-        evalText.style.color = playerScore > 0.5 ? '#666666' : 
-                              playerScore < -0.5 ? 'red' : 'black';
+        evalText.textContent = scoreAfter.toFixed(2);
+        evalText.style.color = scoreAfter > 0.5 ? '#666666' : 
+                              scoreAfter < -0.5 ? 'red' : 'black';
     }
 
     // Update evaluation details panel
@@ -429,25 +558,36 @@ function displayScore(rawScore) {
         playerColorElement.textContent = playerColor === 'w' ? 'White' : 'Black';
     }
     
-    // Previous score is also already in player's perspective
-    const previousPlayerScore = rawLastPositionScore || 0;
-    
+    // Update score before
     const scoreBeforeElement = document.getElementById('score-before');
     if (scoreBeforeElement) {
-        scoreBeforeElement.textContent = previousPlayerScore.toFixed(2);
+        scoreBeforeElement.textContent = scoreBefore.toFixed(2);
     }
     
+    // Update score after
     const scoreAfterElement = document.getElementById('score-after');
     if (scoreAfterElement) {
-        scoreAfterElement.textContent = playerScore.toFixed(2);
+        scoreAfterElement.textContent = scoreAfter.toFixed(2);
     }
     
-    // Calculate evaluation change
-        const evalChange = playerScore - previousPlayerScore;
+    // Update evaluation change
     const evalChangeElement = document.getElementById('eval-change');
     if (evalChangeElement) {
-        evalChangeElement.textContent = 
-            evalChange.toFixed(2) + (evalChange < 0 ? " (worsened)" : " (improved)");
+        evalChangeElement.textContent = evalChange.toFixed(2);
+    }
+
+    // Update blunder status
+    const isBlunderElement = document.getElementById('is-blunder');
+    if (isBlunderElement) {
+        const isBlunder = evalChange <= -blunderThreshold;
+        isBlunderElement.textContent = isBlunder ? "Yes" : "No";
+        isBlunderElement.style.color = isBlunder ? "#d32f2f" : "#495057";
+    }
+
+    // Update thresholds display
+    const thresholdsElement = document.getElementById('thresholds');
+    if (thresholdsElement) {
+        thresholdsElement.textContent = `Blunder: ${blunderThreshold}`;
     }
 }
 
@@ -506,7 +646,7 @@ function changeSide(humanColor) {
     board.position(chess.fen());
     
     // Reset evaluation scores
-    rawLastPositionScore = null;
+    playerLastScore = null;
     
     updateStatus();
     
@@ -520,7 +660,7 @@ function changeSide(humanColor) {
             const checkEngine = setInterval(() => {
                 if (engineReady) {
                     clearInterval(checkEngine);
-        setTimeout(makeComputerMove, 500);
+                    setTimeout(makeComputerMove, 500);
                 }
             }, 100);
         }
@@ -529,7 +669,7 @@ function changeSide(humanColor) {
 
 function resetGame() {
     chess.reset();
-    rawLastPositionScore = 0.00;  // Set initial score to 0.00
+    playerLastScore = 0.00;  // Set initial score to 0.00
     
     const currentOrientation = board.orientation();
     board.position(chess.fen());
@@ -570,6 +710,11 @@ function resetGame() {
 
 // Add undo functionality
 function undoLastMove() {
+    console.log('Undoing last move, current turn:', chess.turn());
+    
+    // Store the current turn before undoing
+    const turnBeforeUndo = chess.turn();
+    
     // Undo computer's move if it was the last move
     if (chess.turn() !== computerColor) {
         chess.undo();
@@ -591,22 +736,45 @@ function undoLastMove() {
     
     // Restore the pre-blunder evaluation
     if (preBlunderScore !== null) {
-        rawLastPositionScore = preBlunderScore;
-        displayScore(preBlunderScore);
+        playerLastScore = preBlunderScore;
+        displayScore(preBlunderScore, preBlunderScore, 0);
         preBlunderScore = null; // Clear the stored pre-blunder score
     }
     
     updateStatus();
+    
+    // Only make computer move if it's computer's turn and computer is playing
+    if (computerColor && chess.turn() === computerColor && !chess.game_over()) {
+        console.log('Computer\'s turn after undo, making move');
+        setTimeout(makeComputerMove, 500);
+    } else {
+        console.log('Not computer\'s turn after undo:', {
+            computerColor: computerColor,
+            currentTurn: chess.turn(),
+            gameOver: chess.game_over()
+        });
+    }
 }
 
 // Initialize everything
 window.onload = function() {
+    console.log('Window loaded, initializing chessboard...');
+    
     board = Chessboard('board', {
         draggable: true,
         position: 'start',
-        onDragStart: onDragStart,
-        onDrop: onDrop,
-        onSnapEnd: onSnapEnd,
+        onDragStart: function(source, piece) {
+            console.log('Drag started:', { source, piece });
+            return onDragStart(source, piece);
+        },
+        onDrop: function(source, target) {
+            console.log('Drop event triggered:', { source, target });
+            return onDrop(source, target);
+        },
+        onSnapEnd: function() {
+            console.log('Snap end triggered');
+            onSnapEnd();
+        },
         showArrows: true,
         moveSpeed: 100,      // Faster piece movement
         trashSpeed: 50,      // Faster piece removal
@@ -615,109 +783,169 @@ window.onload = function() {
         snapSpeed: 100       // Faster snapping
     });
     
+    console.log('Chessboard initialized:', { board });
+    
     // Add touch event handling
     const boardElement = document.getElementById('board');
     if (boardElement) {
+        console.log('Adding touch event handlers to board element');
         boardElement.addEventListener('touchstart', function(e) {
+            console.log('Touch start event');
             e.preventDefault();
         }, { passive: false });
         
         boardElement.addEventListener('touchmove', function(e) {
+            console.log('Touch move event');
             e.preventDefault();
         }, { passive: false });
         
         boardElement.addEventListener('touchend', function(e) {
+            console.log('Touch end event');
             e.preventDefault();
         }, { passive: false });
+    } else {
+        console.error('Board element not found!');
     }
     
     // Add event listener for evaluation toggle button
-    document.getElementById('toggleEvalButton').addEventListener('click', toggleEvaluationMetrics);
+    const toggleButton = document.getElementById('toggleEvalButton');
+    if (toggleButton) {
+        console.log('Adding evaluation toggle button handler');
+        toggleButton.addEventListener('click', toggleEvaluationMetrics);
+    } else {
+        console.error('Toggle evaluation button not found!');
+    }
     
     // Add event listeners for info modal
     const modal = document.getElementById('infoModal');
     const infoButton = document.getElementById('infoButton');
     const closeButton = document.querySelector('.close-button');
     
-    infoButton.addEventListener('click', function() {
-        modal.classList.add('show');
-    });
-    
-    closeButton.addEventListener('click', function() {
-        modal.classList.remove('show');
-    });
-    
-    window.addEventListener('click', function(event) {
-        if (event.target === modal) {
+    if (modal && infoButton && closeButton) {
+        console.log('Adding modal event handlers');
+        infoButton.addEventListener('click', function() {
+            modal.classList.add('show');
+        });
+        
+        closeButton.addEventListener('click', function() {
             modal.classList.remove('show');
-        }
-    });
-    
-    document.getElementById('suggestButton').addEventListener('click', () => {
-        if (!stockfish || !engineReady) {
-            document.getElementById('blunder-feedback').textContent = 
-                !stockfish ? 'Chess engine not initialized' : 'Chess engine is still initializing';
-            document.querySelector('.feedback-container').classList.add('visible');
-            return;
-        }
+        });
         
-        // Clear any existing arrows
-        clearArrows();
-        
-        // Show feedback container and display thinking message
-        document.querySelector('.feedback-container').classList.add('visible');
-        document.getElementById('blunder-feedback').textContent = 'Thinking...';
-        
-        findBetterMove(chess.fen(), function(suggestedMove) {
-            if (suggestedMove) {
-                document.getElementById('blunder-feedback').textContent = `Suggested move: ${suggestedMove}`;
-                // Add arrow for the suggested move
-                const from = suggestedMove.substring(0, 2);
-                const to = suggestedMove.substring(2, 4);
-                drawArrow(from, to); // Use default color (#495057)
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.classList.remove('show');
             }
         });
-    });
+    } else {
+        console.error('Modal elements not found!');
+    }
     
-    document.getElementById('resetButton').addEventListener('click', resetGame);
-    
+    // Add skill slider handler
     const skillSlider = document.getElementById('skill-slider');
     const eloDisplay = document.getElementById('elo-display');
     
-    skillSlider.addEventListener('input', function() {
-        const skillLevel = parseInt(this.value);
-        const eloValue = skillToElo[skillLevel];
-        eloDisplay.textContent = eloValue;
-        if (stockfish && engineReady) {
-            stockfish.postMessage('setoption name Skill Level value ' + skillLevel);
-        }
-    });
+    if (skillSlider && eloDisplay) {
+        console.log('Adding skill slider handler');
+        skillSlider.addEventListener('input', function() {
+            const skillLevel = parseInt(this.value);
+            const eloValue = skillToElo[skillLevel];
+            eloDisplay.textContent = eloValue;
+            console.log('Skill level changed:', { skillLevel, eloValue });
+            if (playingEngine && engineReady) {
+                console.log('Sending skill level command to playing engine:', skillLevel);
+                playingEngine.postMessage('setoption name Skill Level value ' + skillLevel);
+                
+                const maxError = Math.max(10, 100 - (skillLevel * 4));
+                const probability = Math.max(10, 100 - (skillLevel * 4));
+                
+                playingEngine.postMessage('setoption name Skill Level Maximum Error value ' + maxError);
+                playingEngine.postMessage('setoption name Skill Level Probability value ' + probability);
+                
+                console.log('Playing engine parameters set:', { skillLevel, maxError, probability });
+            }
+        });
+    } else {
+        console.error('Skill slider or ELO display not found!');
+    }
     
-    // Initialize Stockfish first
-    initializeStockfish();
+    // Add reset button handler
+    const resetButton = document.getElementById('resetButton');
+    if (resetButton) {
+        console.log('Adding reset button handler');
+        resetButton.addEventListener('click', resetGame);
+    } else {
+        console.error('Reset button not found!');
+    }
+    
+    // Add suggestion button handler
+    const suggestButton = document.getElementById('suggestButton');
+    if (suggestButton) {
+        console.log('Adding suggestion button handler');
+        suggestButton.addEventListener('click', () => {
+            if (!evaluationEngine || !engineReady) {
+                document.getElementById('blunder-feedback').textContent = 
+                    !evaluationEngine ? 'Chess engine not initialized' : 'Chess engine is still initializing';
+                document.querySelector('.feedback-container').classList.add('visible');
+                return;
+            }
+            
+            // Clear any existing arrows
+            clearArrows();
+            
+            // Show feedback container and display thinking message
+            document.querySelector('.feedback-container').classList.add('visible');
+            document.getElementById('blunder-feedback').textContent = 'Thinking...';
+            
+            findBetterMove(chess.fen(), function(suggestedMove) {
+                if (suggestedMove) {
+                    document.getElementById('blunder-feedback').textContent = `Suggested move: ${suggestedMove}`;
+                    // Add arrow for the suggested move
+                    const from = suggestedMove.substring(0, 2);
+                    const to = suggestedMove.substring(2, 4);
+                    drawArrow(from, to); // Use default color (#495057)
+                }
+            });
+        });
+    } else {
+        console.error('Suggestion button not found!');
+    }
+    
+    // Initialize engines first
+    console.log('Initializing chess engines...');
+    initializeEngines();
     
     // Set up event listeners after Stockfish initialization
     const selectWhite = document.getElementById('select-white');
     const selectBlack = document.getElementById('select-black');
     
-    selectWhite.addEventListener('click', function() {
-        selectWhite.classList.add('selected-side');
-        selectBlack.classList.remove('selected-side');
-        changeSide('w');
-    });
-    
-    selectBlack.addEventListener('click', function() {
-        selectBlack.classList.add('selected-side');
-        selectWhite.classList.remove('selected-side');
-        changeSide('b');  // This will set computer as white and trigger its move
-    });
+    if (selectWhite && selectBlack) {
+        console.log('Adding side selection handlers');
+        selectWhite.addEventListener('click', function() {
+            selectWhite.classList.add('selected-side');
+            selectBlack.classList.remove('selected-side');
+            changeSide('w');
+        });
+        
+        selectBlack.addEventListener('click', function() {
+            selectBlack.classList.add('selected-side');
+            selectWhite.classList.remove('selected-side');
+            changeSide('b');
+        });
+    } else {
+        console.error('Side selection buttons not found!');
+    }
     
     // Set initial state - default to white
-    document.getElementById('select-white').classList.add('selected-side');
+    if (selectWhite) {
+        console.log('Setting initial state to white');
+        selectWhite.classList.add('selected-side');
+    }
     
     // Don't call changeSide immediately, wait for engine to be ready
+    console.log('Waiting for engine to be ready...');
     const checkEngine = setInterval(() => {
         if (engineReady) {
+            console.log('Engine is ready, initializing game...');
             clearInterval(checkEngine);
             changeSide('w');  // Initialize with white side selected
         }
@@ -725,16 +953,23 @@ window.onload = function() {
     
     // Set up undo button with red color
     const undoButton = document.getElementById('undoButton');
-    undoButton.addEventListener('click', undoLastMove);
-    undoButton.style.backgroundColor = '#f44336'; // Set button color to red
-    undoButton.style.color = 'white'; // Set text color to white for better contrast
-    undoButton.style.borderColor = '#f44336'; // Set border color to red
-    undoButton.style.border = '2px solid #f44336'; // Set border style and color
+    if (undoButton) {
+        console.log('Setting up undo button');
+        undoButton.addEventListener('click', undoLastMove);
+        undoButton.style.backgroundColor = '#f44336';
+        undoButton.style.color = 'white';
+        undoButton.style.borderColor = '#f44336';
+        undoButton.style.border = '2px solid #f44336';
+    } else {
+        console.error('Undo button not found!');
+    }
     
+    console.log('Initial evaluation starting...');
     setTimeout(() => {
         evaluatePosition(function(rawScore) {
-            displayScore(rawScore);
-            rawLastPositionScore = rawScore;
+            console.log('Initial evaluation complete:', rawScore);
+            displayScore(rawScore, rawScore, 0);
+            playerLastScore = rawScore;
         });
     }, 2000);
 };

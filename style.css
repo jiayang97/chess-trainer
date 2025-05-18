@@ -46,7 +46,7 @@ body {
         gap: 10px !important;
     }
 
-    .left-column {
+.left-column {
         width: 100% !important;
         padding: 10px !important;
         margin: 0 !important;
@@ -334,17 +334,19 @@ body {
     display: none;
     flex-direction: column;
     gap: 8px;
-    margin: 10px 0;
+    margin: 10px auto;
     width: 90%;
+    max-width: 350px;
     background-color: #f8f9fa;
     border: 2px solid #e9ecef;
-    border-radius: 5px;
-    padding: 8px;
+    border-radius: 8px;
+    padding: 10px;
     animation: fadeIn 0.3s ease;
+    box-sizing: border-box;
 }
 
 .feedback-container.visible {
-    display: flex;
+    display: flex !important;
 }
 
 /* Blunder feedback */
@@ -352,36 +354,47 @@ body {
     background-color: transparent;
     border: none;
     color: #333;
-    width: 90%;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     padding: 0;
     text-align: center;
     font-weight: bold;
     transition: all 0.3s ease;
     font-size: 14px;
     line-height: 1.4;
+    box-sizing: border-box;
 }
 
 .blunder-status.blunder {
-    color: #333;
+    color: #d32f2f;
+    background-color: #ffebee;
+    border-radius: 6px;
+    padding: 10px;
+    margin: 0;
 }
 
 .blunder-text {
     color: #d32f2f;
     font-weight: bold;
+    font-size: 16px;
+    display: block;
+    margin-bottom: 6px;
 }
 
 /* Undo button */
 #undoButton {
     width: 100%;
     padding: 8px;
-    border-radius: 5px;
+    border-radius: 6px;
     transition: all 0.3s ease;
-    margin-top: 0;
+    margin-top: 8px;
     background-color: #f44336;
     color: white;
     font-weight: bold;
     border: 2px solid #f44336;
+    cursor: pointer;
+    font-size: 14px;
+    box-sizing: border-box;
 }
 
 #undoButton:hover {
@@ -469,6 +482,28 @@ body {
     font-size: 18px;
     font-weight: bold;
     width: 90%;
+    transition: all 0.3s ease;
+}
+
+.computer-status.checkmate {
+    background-color: #d32f2f !important;
+    color: white !important;
+    border-color: #b71c1c !important;
+    font-size: 20px !important;
+    padding: 12px 20px !important;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 #elo-display, .elo-text {
