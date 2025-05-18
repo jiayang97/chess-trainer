@@ -483,12 +483,14 @@ function makeComputerMove() {
     const skillLevel = parseInt(document.getElementById('skill-slider').value);
     console.log('Making computer move with skill level:', skillLevel);
     
+    // Calculate engine parameters based on skill level
+    // At lower levels, more randomness and errors
+    // At higher levels, more precise and consistent play
+    const maxError = Math.max(10, 200 - (skillLevel * 10));  // More error range at lower levels
+    const probability = Math.max(10, 200 - (skillLevel * 10));  // More randomness at lower levels
+    
     // Set skill parameters for playing engine
     playingEngine.postMessage('setoption name Skill Level value ' + skillLevel);
-    
-    const maxError = Math.max(10, 100 - (skillLevel * 4));
-    const probability = Math.max(10, 100 - (skillLevel * 4));
-    
     playingEngine.postMessage('setoption name Skill Level Maximum Error value ' + maxError);
     playingEngine.postMessage('setoption name Skill Level Probability value ' + probability);
     
@@ -522,15 +524,17 @@ function makeComputerMove() {
                 
                 // Don't evaluate position or update score during computer's turn
                 // Just keep showing the last player's score
-                displayScore(playerLastScore);
+                displayScore(playerLastScore, playerLastScore, 0);
             }
             
             playingEngine.onmessage = originalHandler;
         }
     };
     
-    const depth = Math.max(3, Math.floor(skillLevel / 3));
-    const moveTime = Math.max(100, 1000 - (skillLevel * 40));
+    // Adjust search depth and time based on skill level
+    // Higher skill levels get more time and depth to find better moves
+    const depth = Math.max(3, Math.floor(skillLevel / 2) + 2);  // More depth at higher levels
+    const moveTime = Math.max(100, 500 + (skillLevel * 100));  // More time at higher levels
     
     console.log('Playing engine search parameters:', { depth, moveTime });
     playingEngine.postMessage('stop');
